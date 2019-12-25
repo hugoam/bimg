@@ -139,9 +139,16 @@ namespace bimg
 		, bool _useBilinearInterpolation
 		, bx::Error* _err
 		);
+	
+	///
+	ImageContainer* imageCubemapFrom6Sides(
+		  bx::AllocatorI* _allocator
+		, const ImageContainer* const* _sides
+		, bx::Error* _err
+		);
 
 	///
-	ImageContainer* imageCubemapFromStripRgba32F(
+	ImageContainer* imageCubemapFromStrip(
 		  bx::AllocatorI* _allocator
 		, const ImageContainer& _input
 		, bx::Error* _err

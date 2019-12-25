@@ -328,14 +328,56 @@ namespace bimg
 
 		return output;
 	}
+	
+	ImageContainer* imageCubemapFrom6Sides(bx::AllocatorI* _allocator, const ImageContainer* const* _sides, bx::Error* _err)
+	{
+		BX_ERROR_SCOPE(_err);
+		
+		const ImageContainer& first = *_sides[0];
 
-	ImageContainer* imageCubemapFromStripRgba32F(bx::AllocatorI* _allocator, const ImageContainer& _input, bx::Error* _err)
+		const uint32_t stride = getBitsPerPixel(first.m_format) / 8;
+		const uint32_t srcPitch = first.m_width * stride;
+		const uint32_t dstWidth = first.m_height;
+		const uint32_t dstPitch = dstWidth * stride;
+		
+		ImageContainer* output = imageAlloc(_allocator
+			, first.m_format
+			, uint16_t(dstWidth)
+			, uint16_t(dstWidth)
+			, uint16_t(1)
+			, 1
+			, true
+			, false
+			);
+
+		for (uint8_t side = 0; side < 6 && _err->isOk(); ++side)
+		{
+			const ImageContainer& input = *_sides[side];
+			if (input.m_depth     != 1
+			&&  input.m_numLayers != 1
+			&&  input.m_width     != input.m_height)
+			{
+				BX_ERROR_SET(_err, BIMG_ERROR, "Input image format is incorrect.");
+				return NULL;
+			}
+
+			const uint8_t* srcData = (const uint8_t*)input.m_data;
+
+			ImageMip dstMip;
+			imageGetRawData(*output, side, 0, output->m_data, output->m_size, dstMip);
+
+			bx::memCopy(const_cast<uint8_t*>(dstMip.m_data), dstPitch, srcData, srcPitch, dstPitch, dstWidth);
+		}
+
+		return output;
+	}
+
+	ImageContainer* imageCubemapFromStrip(bx::AllocatorI* _allocator, const ImageContainer& _input, bx::Error* _err)
 	{
 		BX_ERROR_SCOPE(_err);
 
 		if (_input.m_depth     != 1
 		&&  _input.m_numLayers != 1
-		&&  _input.m_format    != TextureFormat::RGBA32F
 		&& ( (_input.m_width   != _input.m_height*6) || (_input.m_width*6 != _input.m_height) ) )
 		{
 			BX_ERROR_SET(_err, BIMG_ERROR, "Input image format is not strip projection.");
@@ -343,9 +385,10 @@ namespace bimg
 		}
 
 		const bool   horizontal = _input.m_width == _input.m_height*6;
-		const uint32_t srcPitch = _input.m_width*16;
+		const uint32_t stride = getBitsPerPixel(_input.m_format) / 8;
+		const uint32_t srcPitch = _input.m_width * stride;
 		const uint32_t dstWidth = horizontal ? _input.m_height : _input.m_width;
-		const uint32_t dstPitch = dstWidth*16;
+		const uint32_t dstPitch = dstWidth * stride;
 		const uint32_t step     = horizontal ? dstPitch : dstPitch*dstWidth;
 
 		ImageContainer* output = imageAlloc(_allocator
